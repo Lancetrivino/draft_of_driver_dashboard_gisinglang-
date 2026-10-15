@@ -147,16 +147,15 @@ create policy "admins manage all devices" on public.devices
     for all using (is_admin()) with check (is_admin());
 
 -- drowsiness_events
+-- Drivers only. Administrators have NO row access to events, contacts or SMS
+-- logs (R.A. 10173 / NFR 4); they get counts from admin_system_summary() and
+-- admin_daily_alert_counts() below (migration admin_aggregate_only_access).
 create policy "drivers view own events" on public.drowsiness_events
     for select using (auth.uid() = user_id);
-create policy "admins view all events" on public.drowsiness_events
-    for select using (is_admin());
 
 -- emergency_contacts
 create policy "drivers manage own contacts" on public.emergency_contacts
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "admins view all contacts" on public.emergency_contacts
-    for select using (is_admin());
 
 -- sms_logs
 create policy "drivers view own sms logs" on public.sms_logs
@@ -166,8 +165,36 @@ create policy "drivers view own sms logs" on public.sms_logs
             where e.id = sms_logs.event_id and e.user_id = auth.uid()
         )
     );
-create policy "admins view all sms logs" on public.sms_logs
-    for select using (is_admin());
+
+-- Aggregate-only access for administrators. SECURITY DEFINER so they can
+-- count rows they cannot read; each function refuses non-admin callers.
+create or replace function public.admin_daily_alert_counts(days integer default 90)
+returns table(day date, alert_level text, event_count bigint)
+language plpgsql stable security definer set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'administrator role required' using errcode = '42501';
+  end if;
+  return query
+    select (e.event_timestamp at time zone 'Asia/Manila')::date, e.alert_level, count(*)::bigint
+      from public.drowsiness_events e
+     where e.alert_level <> 'NONE'
+       and e.event_timestamp >= now() - make_interval(days => greatest(days, 1))
+     group by 1, 2 order by 1, 2;
+end;
+$$;
+
+-- admin_system_summary() returns a JSON object of totals only: total /
+-- per-layer / combined alert counts, alerts in the last 24 h and 7 days,
+-- devices reporting in the last 24 h, time of the last event, and SMS
+-- sent / failed / skipped / dry-run counts with average send latency.
+-- (Full body in migration admin_aggregate_only_access.)
+
+revoke all on function public.admin_daily_alert_counts(integer) from public, anon;
+revoke all on function public.admin_system_summary() from public, anon;
+grant execute on function public.admin_daily_alert_counts(integer) to authenticated;
+grant execute on function public.admin_system_summary() to authenticated;
 
 -- =============================================================================
 -- TRIGGERS / FUNCTIONS
