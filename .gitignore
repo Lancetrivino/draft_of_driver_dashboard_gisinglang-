@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env.local
+*.log
+.DS_Store
+
+# Local Supabase settings - copy from .env.example
+.env
