@@ -93,11 +93,13 @@ function buildMessage(event: DrowsinessEvent, driverName: string | null): string
     minute: "2-digit",
     hour12: true,
   });
+  // Plain, conversational wording: carrier/gateway spam filters reject
+  // all-caps words like "ALERT" and code-like tokens (device IDs, email
+  // usernames), so neither is used here.
   const who = driverName?.trim() || "The driver";
-  const unit = event.device_id ? ` (${event.device_id})` : "";
   const msg = toPlainText(
-    `GisingLang ALERT: ${who}${unit} showed severe drowsiness while driving on ${when}. ` +
-      `Please check on them.`,
+    `GisingLang safety notice: ${who} showed signs of severe drowsiness while driving at ${when}. ` +
+      `Please call them and make sure they are safe.`,
   );
   return msg.length > MESSAGE_MAX_CHARS ? msg.slice(0, MESSAGE_MAX_CHARS - 3) + "..." : msg;
 }
@@ -172,10 +174,22 @@ const json = (body: unknown, status = 200) =>
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const expectedSecret = Deno.env.get("WEBHOOK_SECRET");
-  if (!expectedSecret || req.headers.get("x-webhook-secret") !== expectedSecret) {
-    return json({ error: "unauthorized" }, 401);
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // The trigger sends the Vault secret gisinglang_webhook_secret. Accept it
+  // if it matches the optional WEBHOOK_SECRET env var, or (preferred) the
+  // Vault copy itself via check_sms_webhook_secret(), so the two never drift.
+  const provided = req.headers.get("x-webhook-secret") ?? "";
+  const envSecret = Deno.env.get("WEBHOOK_SECRET");
+  let authorized = !!envSecret && provided === envSecret;
+  if (!authorized && provided) {
+    const { data, error } = await supabase.rpc("check_sms_webhook_secret", { candidate: provided });
+    authorized = !error && data === true;
   }
+  if (!authorized) return json({ error: "unauthorized" }, 401);
 
   let event: DrowsinessEvent;
   try {
@@ -185,11 +199,6 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     return json({ error: "bad payload: " + String(err) }, 400);
   }
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
 
   const log = async (row: Record<string, unknown>) => {
     await supabase.from("sms_logs").insert({ event_id: event.id, ...row });
@@ -268,7 +277,8 @@ Deno.serve(async (req: Request) => {
       .select("display_name, email")
       .eq("user_id", event.user_id)
       .maybeSingle();
-    driverName = data?.display_name ?? data?.email?.split("@")[0] ?? null;
+    // Only a real display name; an email username looks like spam to filters.
+    driverName = data?.display_name ?? null;
   }
 
   const message = buildMessage(event, driverName);
@@ -328,7 +338,12 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  await supabase.from("drowsiness_events").update({ sms_sent: true }).eq("id", event.id);
+  // Only start the cooldown if a message actually went out (or was a dry
+  // run); a rejected send must not block the next attempt.
+  const anySent = dryRun || results.some((r) => (r as { ok?: boolean }).ok === true);
+  if (anySent) {
+    await supabase.from("drowsiness_events").update({ sms_sent: true }).eq("id", event.id);
+  }
 
   return json({ provider: which, sent: results.length, dry_run: dryRun, results });
 });
