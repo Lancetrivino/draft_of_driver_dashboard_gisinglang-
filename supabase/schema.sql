@@ -315,3 +315,36 @@ create index idx_emergency_contacts_user_id
 -- Realtime is enabled on drowsiness_events (migration
 -- enable_realtime_on_events) so the admin dashboard / driver PWA can
 -- subscribe to new events live instead of polling.
+
+-- =============================================================================
+-- START MODE (Auto / Manual) - migration device_start_mode_control
+-- =============================================================================
+-- The driver app sets start_mode and desired_state through set_device_control();
+-- the Pi's start_mode_agent.py reads them and reports run_state + last_seen_at.
+alter table public.devices
+  add column if not exists start_mode text not null default 'auto' check (start_mode in ('auto','manual')),
+  add column if not exists desired_state text not null default 'running' check (desired_state in ('running','stopped')),
+  add column if not exists run_state text check (run_state in ('running','stopped','starting')),
+  add column if not exists state_changed_at timestamptz;
+
+drop policy if exists "drivers update own devices" on public.devices;
+
+create or replace function public.set_device_control(p_start_mode text default null, p_desired_state text default null)
+returns public.devices
+language plpgsql security definer set search_path = public as $$
+declare r public.devices;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if p_start_mode is not null and p_start_mode not in ('auto','manual') then raise exception 'invalid start mode'; end if;
+  if p_desired_state is not null and p_desired_state not in ('running','stopped') then raise exception 'invalid state'; end if;
+  update public.devices
+     set start_mode = coalesce(p_start_mode, start_mode),
+         desired_state = coalesce(p_desired_state, desired_state),
+         state_changed_at = case when p_desired_state is not null then now() else state_changed_at end
+   where user_id = auth.uid()
+  returning * into r;
+  if r.device_id is null then raise exception 'no device is assigned to this account'; end if;
+  return r;
+end $$;
+revoke all on function public.set_device_control(text, text) from public, anon;
+grant execute on function public.set_device_control(text, text) to authenticated;

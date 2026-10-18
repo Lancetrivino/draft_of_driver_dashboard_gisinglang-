@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { colors, levelColor, levelLabel, fmtDateTime, fmtNum } from "../theme";
 import EarTrend from "../components/EarTrend";
+import DeviceControl from "../components/DeviceControl";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -81,35 +82,7 @@ export default function HomeScreen({ user }) {
 
       {errorMsg && <div className="banner error">{errorMsg}</div>}
 
-      <div className="card">
-        <div className="card-title">Device</div>
-        {device ? (
-          <>
-            <div className="row">
-              <span className="muted">Unit</span>
-              <span>{device.unit_label}</span>
-            </div>
-            <div className="row">
-              <span className="muted">Status</span>
-              <span className={`pill ${device.status === "Active" ? "pill-good" : "pill-warn"}`}>
-                {device.status}
-              </span>
-            </div>
-            <div className="row">
-              <span className="muted">Firmware</span>
-              <span>{device.firmware_version || "—"}</span>
-            </div>
-            <div className="row">
-              <span className="muted">Last seen</span>
-              <span>{fmtDateTime(device.last_seen_at)}</span>
-            </div>
-          </>
-        ) : (
-          <div className="muted">
-            No device is registered to your account yet. Ask your administrator to assign one.
-          </div>
-        )}
-      </div>
+      <DeviceControl device={device} />
 
       <div className="stat-row">
         <div className="stat-card">

@@ -344,3 +344,68 @@ form button[type="submit"]:disabled {
   color: #3fb8ff;
   font-weight: 600;
 }
+
+/* Device start-mode control */
+.pill-off {
+  background: #3a4a5a55;
+  color: #8697a8;
+}
+
+.control-label {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #8697a8;
+}
+
+.segmented {
+  display: flex;
+  background: #1a232e;
+  border: 1px solid #233040;
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 6px;
+}
+
+.seg {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #8697a8;
+  padding: 9px 0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.seg.active {
+  background: #3fb8ff;
+  color: #0b0f14;
+}
+
+.control-btn {
+  width: 100%;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  border: none;
+  border-radius: 10px;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.control-btn.start {
+  background: #2fbf71;
+  color: #0b0f14;
+}
+
+.control-btn.stop {
+  background: #ef444433;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+}
+
+.control-btn:disabled,
+.seg:disabled {
+  opacity: 0.6;
+}
