@@ -448,3 +448,9 @@ form button[type="submit"]:disabled {
 .help-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .help-list { margin: 10px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.5; color: #cfd8e3; }
 .help-list li { margin-bottom: 6px; }
+
+.test-btn {
+  margin-top: 6px; background: none; border: 1px solid #3fb8ff; color: #3fb8ff;
+  border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600;
+}
+.test-btn:disabled { opacity: 0.6; }

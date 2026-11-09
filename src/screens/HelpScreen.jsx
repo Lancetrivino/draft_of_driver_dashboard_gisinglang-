@@ -43,7 +43,8 @@ const SECTIONS = [
     title: "Changing alert strength",
     body: [
       "Home → Device settings → Vibration strength and Sound alert. Choose Low, Medium or High.",
-      "The unit applies the change within about 20 seconds. A severe alert always uses full strength.",
+      "Press Test vibration or Test sound to feel or hear the level right away (the unit must be online).",
+      "The unit applies the change within a few seconds. A severe alert always uses full strength.",
     ],
   },
   {

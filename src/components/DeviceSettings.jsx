@@ -44,6 +44,7 @@ export default function DeviceSettings({ device, onChange }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [dev, setDev] = useState(device);
+  const [testMsg, setTestMsg] = useState("");
 
   useEffect(() => setDev(device), [device]);
 
@@ -66,6 +67,28 @@ export default function DeviceSettings({ device, onChange }) {
       setDev(data);
       onChange?.(data);
     }
+  }
+
+  async function test(kind) {
+    setTestMsg("");
+    setMsg("");
+    const { error } = await supabase.rpc("request_alert_test", { p_kind: kind });
+    if (error) {
+      setMsg(
+        /function|schema cache/i.test(error.message)
+          ? "The test button needs the latest database update (migration_alert_test.sql)."
+          : error.message,
+      );
+      return;
+    }
+    const seen = dev.last_seen_at ? new Date(dev.last_seen_at).getTime() : 0;
+    setTestMsg(
+      Date.now() - seen > 45000
+        ? "Sent, but the device looks offline — it will not play until it is connected."
+        : kind === "vibration"
+          ? "Sent — the seatbelt pads will vibrate in a few seconds."
+          : "Sent — the buzzers will sound in a few seconds.",
+    );
   }
 
   const mode = dev.start_mode || "auto";
@@ -97,14 +120,17 @@ export default function DeviceSettings({ device, onChange }) {
           <Segmented value={vib} label="Vibration strength" disabled={busy}
             onPick={(v) => call("set_alert_levels", { p_vibration: v })} />
           <div className="small muted">{VIB_HELP[vib]}</div>
+          <button className="test-btn" disabled={busy} onClick={() => test("vibration")}>▶ Test vibration</button>
 
           <div className="control-label">Sound alert</div>
           <Segmented value={sound} label="Sound alert" disabled={busy}
             onPick={(v) => call("set_alert_levels", { p_buzzer: v })} />
           <div className="small muted">{SOUND_HELP[sound]}</div>
+          <button className="test-btn" disabled={busy} onClick={() => test("sound")}>▶ Test sound</button>
+          {testMsg && <div className="small" style={{ color: "#2fbf71", marginTop: 6 }}>{testMsg}</div>}
 
           <div className="small muted" style={{ marginTop: 8 }}>
-            Changes reach the device within about 20 seconds. A severe alert (eyes and head together) always uses
+            Changes reach the device within a few seconds. Press Test to feel or hear the chosen strength. A severe alert (eyes and head together) always uses
             full vibration and a long beep.
           </div>
           {msg && <div className="error-text">{msg}</div>}
