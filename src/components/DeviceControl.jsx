@@ -55,42 +55,15 @@ export default function DeviceControl({ device: initial }) {
   const mode = device.start_mode || "auto";
 
   return (
-    <div className="card">
-      <div className="card-title">Device</div>
-      <div className="row">
-        <span className="muted">Unit</span>
-        <span>{device.unit_label}</span>
-      </div>
-      <div className="row">
-        <span className="muted">Detection</span>
-        <span className={`pill ${st.cls}`}>{st.label}</span>
-      </div>
-      <div className="row">
-        <span className="muted">Last seen</span>
-        <span>{fmtDateTime(device.last_seen_at)}</span>
-      </div>
-
-      <div className="control-label">Start mode</div>
-      <div className="segmented" role="radiogroup" aria-label="Start mode">
-        <button
-          className={mode === "auto" ? "seg active" : "seg"}
-          disabled={busy}
-          onClick={() => mode !== "auto" && control({ p_start_mode: "auto" })}
-        >
-          Auto
-        </button>
-        <button
-          className={mode === "manual" ? "seg active" : "seg"}
-          disabled={busy}
-          onClick={() => mode !== "manual" && control({ p_start_mode: "manual" })}
-        >
-          Manual
-        </button>
-      </div>
-      <div className="small muted">
-        {mode === "auto"
-          ? "Detection starts by itself when the car (device) is switched on."
-          : "Detection waits until you press Start below."}
+    <div className="card status-card">
+      <div className="status-top">
+        <div>
+          <div className="card-title" style={{ marginBottom: 4 }}>GisingLang device</div>
+          <div className="muted small">
+            {device.unit_label} · last seen {fmtDateTime(device.last_seen_at)}
+          </div>
+        </div>
+        <span className={`pill big ${st.cls}`}>{st.label}</span>
       </div>
 
       <button
@@ -100,10 +73,14 @@ export default function DeviceControl({ device: initial }) {
       >
         {busy ? "Sending…" : running ? "■ Stop detection" : "▶ Start detection"}
       </button>
+      <div className="small muted">
+        {mode === "auto" ? "Auto start is on. " : ""}
+        After detection starts, put the phone down and look at the road: one beep = calibrating, two beeps = ready.
+      </div>
       {offline && (
-        <div className="small muted">
-          The device is offline. Your choice is saved and applied when it connects. Without internet the device uses
-          the last saved mode, so alerts still work.
+        <div className="small muted" style={{ marginTop: 6 }}>
+          The device is offline. Your choice is saved and applied when it connects; without internet the device starts
+          detection by itself, so alerts still work.
         </div>
       )}
       {msg && <div className="error-text">{msg}</div>}

@@ -56,6 +56,10 @@ interface DrowsinessEvent {
   event_timestamp: string;
   ear_value: number | null;
   perclos_value: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_at?: string | null;
+  location_source?: string | null;
 }
 
 type Provider = "unisms" | "semaphore";
@@ -78,13 +82,34 @@ function cooldownSeconds(): number {
 function toPlainText(s: string): string {
   return s
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\x20-\x7E]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function buildMessage(event: DrowsinessEvent, driverName: string | null): string {
+/** "https://maps.google.com/?q=lat,lng" when the event carries a location
+ * (GPS module on the Pi, or the phone location filled in by the database). */
+function mapLink(event: DrowsinessEvent): string | null {
+  const lat = Number(event.latitude);
+  const lng = Number(event.longitude);
+  if (event.latitude == null || event.longitude == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return `https://maps.google.com/?q=${lat.toFixed(5)},${lng.toFixed(5)}`;
+}
+
+/** The location suffix. A phone location older than 5 minutes is labelled
+ * "last known" so the family does not take it as exact. `asLink` = false
+ * gives plain coordinates (fallback if a gateway filter rejects links). */
+function locationText(event: DrowsinessEvent, asLink = true): string {
+  const link = mapLink(event);
+  if (!link) return "";
+  const ageMin = event.location_at ? (Date.now() - new Date(event.location_at).getTime()) / 60000 : 0;
+  const label = ageMin > 5 ? "Last known location" : "Location";
+  const where = asLink ? link : `${Number(event.latitude).toFixed(5)}, ${Number(event.longitude).toFixed(5)}`;
+  return ` ${label}: ${where}`;
+}
+
+function buildMessage(event: DrowsinessEvent, driverName: string | null, asLink = true): string {
   const when = new Date(event.event_timestamp).toLocaleString("en-PH", {
     timeZone: "Asia/Manila",
     month: "short",
@@ -96,12 +121,17 @@ function buildMessage(event: DrowsinessEvent, driverName: string | null): string
   // Plain, conversational wording: carrier/gateway spam filters reject
   // all-caps words like "ALERT" and code-like tokens (device IDs, email
   // usernames), so neither is used here.
-  const who = driverName?.trim() || "The driver";
-  const msg = toPlainText(
-    `GisingLang safety notice: ${who} showed signs of severe drowsiness while driving at ${when}. ` +
-      `Please call them and make sure they are safe.`,
-  );
-  return msg.length > MESSAGE_MAX_CHARS ? msg.slice(0, MESSAGE_MAX_CHARS - 3) + "..." : msg;
+  const who = toPlainText(driverName?.trim() || "The driver").slice(0, 30);
+  const loc = locationText(event, asLink);
+  const base = loc
+    ? `GisingLang: ${who} was very drowsy while driving at ${when}. Please call them.`
+    : `GisingLang safety notice: ${who} showed signs of severe drowsiness while driving at ${when}. ` +
+      `Please call them and make sure they are safe.`;
+  const msg = toPlainText(base) + loc;
+  // The location must never be cut off, so only the wording is shortened.
+  if (msg.length <= MESSAGE_MAX_CHARS) return msg;
+  const room = Math.max(40, MESSAGE_MAX_CHARS - loc.length - 3);
+  return toPlainText(base).slice(0, room) + "..." + loc;
 }
 
 /** Local PH format 09xxxxxxxxx (Semaphore). */
@@ -309,14 +339,27 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-      const result = which === "unisms"
+      let result = which === "unisms"
         ? await sendUniSms(apiKey!, sender, phone, message, event.id)
         : await sendSemaphore(apiKey!, sender, phone, message);
+      // If the gateway's filter rejects the map link, resend once with plain
+      // coordinates so the family still gets the location.
+      let finalMessage = message;
+      if (!result.ok && mapLink(event)) {
+        const plain = buildMessage(event, driverName, false);
+        const retry = which === "unisms"
+          ? await sendUniSms(apiKey!, sender, phone, plain, event.id)
+          : await sendSemaphore(apiKey!, sender, phone, plain);
+        if (retry.ok) {
+          result = retry;
+          finalMessage = plain;
+        }
+      }
       const latency = Date.now() - startedAt;
       await log({
         contact_id: contact.contact_id,
         phone_number: phone,
-        message,
+        message: finalMessage,
         status: result.ok ? "sent" : "failed",
         provider: which,
         provider_message_id: result.messageId,

@@ -409,3 +409,42 @@ form button[type="submit"]:disabled {
 .seg:disabled {
   opacity: 0.6;
 }
+
+
+/* ---- panel revisions: simplified home, summary, help ---- */
+.app-header { position: relative; }
+.help-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 9px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #3fb8ff;
+  background: none;
+  color: #3fb8ff;
+  font-weight: 700;
+  font-size: 15px;
+}
+.status-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.pill.big { font-size: 14px; padding: 6px 14px; }
+.banner-btn { display: block; width: 100%; text-align: left; font: inherit; font-size: 13px; cursor: pointer; }
+.link-btn { background: none; border: none; color: #3fb8ff; padding: 8px 0 0; font-size: 14px; }
+.collapse-head {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  background: none; border: none; color: inherit; padding: 0; font: inherit; text-align: left;
+}
+.switch { display: flex; align-items: center; gap: 8px; }
+.switch input { width: 20px; height: 20px; accent-color: #2fbf71; }
+.tip {
+  border-left: 4px solid #3fb8ff; background: #1a232e; border-radius: 8px;
+  padding: 10px 12px; margin-bottom: 8px; font-size: 14px; line-height: 1.4;
+}
+.bars { display: flex; align-items: flex-end; gap: 4px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.bar { width: 70%; min-height: 2px; border-radius: 4px 4px 0 0; }
+.bar-val { color: #e8edf3; height: 14px; }
+.bar-label { margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.help-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.help-list { margin: 10px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.5; color: #cfd8e3; }
+.help-list li { margin-bottom: 6px; }

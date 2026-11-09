@@ -4,6 +4,9 @@ import LoginScreen from "./screens/LoginScreen";
 import HomeScreen from "./screens/HomeScreen";
 import HistoryScreen from "./screens/HistoryScreen";
 import ContactsScreen from "./screens/ContactsScreen";
+import SummaryScreen from "./screens/SummaryScreen";
+import HelpScreen from "./screens/HelpScreen";
+import useLocationSharing from "./lib/useLocationSharing";
 import BottomNav from "./components/BottomNav";
 
 export default function App() {
@@ -12,6 +15,7 @@ export default function App() {
   const [roleChecked, setRoleChecked] = useState(false);
   const [roleError, setRoleError] = useState("");
   const [tab, setTab] = useState("home");
+  const [help, setHelp] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -60,6 +64,8 @@ export default function App() {
     };
   }, [session]);
 
+  const location = useLocationSharing(!!session && roleChecked && !roleError);
+
   if (checking) {
     return (
       <div className="screen center">
@@ -93,13 +99,21 @@ export default function App() {
       <header className="app-header">
         <img src="/icons/icon-192.png" alt="" className="app-header-icon" width={22} height={22} />
         GisingLang
+        <button className="help-btn" aria-label="Help" onClick={() => setHelp(true)}>?</button>
       </header>
       <main className="app-main">
-        {tab === "home" && <HomeScreen user={session.user} />}
-        {tab === "history" && <HistoryScreen />}
-        {tab === "contacts" && <ContactsScreen user={session.user} />}
+        {help ? (
+          <HelpScreen onClose={() => setHelp(false)} />
+        ) : (
+          <>
+            {tab === "home" && <HomeScreen user={session.user} location={location} onOpen={setTab} />}
+            {tab === "summary" && <SummaryScreen user={session.user} />}
+            {tab === "history" && <HistoryScreen />}
+            {tab === "contacts" && <ContactsScreen user={session.user} />}
+          </>
+        )}
       </main>
-      <BottomNav active={tab} onChange={setTab} />
+      <BottomNav active={help ? "" : tab} onChange={(t) => { setHelp(false); setTab(t); }} />
     </div>
   );
 }
